@@ -1,0 +1,46 @@
+#!/bin/sh
+mkdir tmp || exit
+cd tmp || exit
+OUTPUT="out.mp3"
+BITRATE="50k"
+COUNT="1"
+for i in "$@"
+do
+    case $i in
+        *youtube*|*youtu.be*)
+        echo "Downloading ${i}"
+        youtube-dl -x "$i" --audio-format mp3 -o "raw_$COUNT.mp3"
+        echo "Reducing bitrate of raw_$COUNT.mp3"
+        ffmpeg -i "raw_$COUNT.mp3" -ac 2 -b:a "$BITRATE" "$COUNT.mp3" -loglevel quiet
+        rm "raw_$COUNT.mp3"
+        COUNT=$((COUNT+1))
+        ;;
+        -o=*|--output=*)
+        OUTPUT="${i#*=}"
+        shift # past argument=value
+        ;;
+        -b=*|--bitrate=*)
+        BITRATE="${i#*=}"
+        shift # past argument=value
+        ;;
+        *)
+            echo "Unrecognized option: ${i}."
+        ;;
+    esac
+done
+
+if [ "$COUNT" = 1 ] ; then
+    echo "No youtube urls deteted in input"
+    rmdir tmp
+    exit 1
+fi
+
+for f in *.mp3
+do
+    echo "file '$f'" >> audio_list.txt
+done
+
+ffmpeg -f concat -i audio_list.txt -c copy "$OUTPUT" -loglevel quiet
+mv "$OUTPUT" ..
+cd ..
+rm -rf tmp
